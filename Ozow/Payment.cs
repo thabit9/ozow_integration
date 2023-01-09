@@ -216,6 +216,35 @@ namespace Ozow_Integration.Ozow
             }
 
         }
+        
+        public bool VerifySHA512Hash(Dictionary<string, string> data, string privateKey, string hash)
+        {
+            Dictionary<string, string> hashDict = new Dictionary<string, string>();
+
+            foreach (string key in data.Keys)
+            {
+                if (key != "HASHCHECK")
+                {
+                    hashDict.Add(key, data[key]);
+                }
+            }
+
+            string PostData = ToConcatString(hashDict);
+            string HashString = PostData + privateKey;
+            string LowerHashString = HashString.ToLower();
+            string hashOfInput = SHA512(LowerHashString);
+
+            StringComparer comparer = StringComparer.OrdinalIgnoreCase;
+
+            if (0 == comparer.Compare(hashOfInput, hash))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
         #endregion 
     }
 }

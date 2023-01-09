@@ -100,12 +100,12 @@ namespace Ozow_Integration.Controllers
                 }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
             }
 
-            if (!_payment.VerifyMd5Hash(results, PayGateKey, results["CHECKSUM"]))
+            if (!_payment.VerifySHA512Hash(results, PrivateKey, results["HASHCHECK"]))
             {
                 return Json(new
                 {
                     success = false,
-                    message = "MD5 verification failed"
+                    message = "SHA512 verification failed"
                 }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
             }
 
