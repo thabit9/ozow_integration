@@ -97,7 +97,7 @@ namespace Ozow_Integration.Controllers
                 {
                     success = false,
                     message = "An error occured while initiating your request"
-                }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
+                }, new Newtonsoft.Json.JsonSerializerSettings());
             }
 
             if (!_payment.VerifySHA512Hash(results, PrivateKey, results["HASHCHECK"]))
@@ -106,10 +106,10 @@ namespace Ozow_Integration.Controllers
                 {
                     success = false,
                     message = "SHA512 verification failed"
-                }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
+                }, new Newtonsoft.Json.JsonSerializerSettings());
             }
 
-            bool IsRecorded = _payment.AddTransaction(request, results["PAY_REQUEST_ID"]);
+            bool IsRecorded = _payment.AddTransaction(request, results["TRANSACTION_ID"]);
             if (IsRecorded)
             {
                 return Json(new
@@ -117,13 +117,13 @@ namespace Ozow_Integration.Controllers
                     success = true,
                     message = "Request completed successfully",
                     results
-                }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
+                }, new Newtonsoft.Json.JsonSerializerSettings());
             }
             return Json(new
             {
                 success = false,
                 message = "Failed to record a transaction"
-            }, new Newtonsoft.Json.JsonSerializerSettings());//JsonRequestBehavior.AllowGet);
+            }, new Newtonsoft.Json.JsonSerializerSettings());
         }
 
         // This is your return url from Paygate
@@ -131,8 +131,9 @@ namespace Ozow_Integration.Controllers
         [HttpPost]
         public async Task<ActionResult> CompletePayment()
         {
-            var PayGateID = _configuration["PayGate:PayGateID"];
-            var PayGateKey  = _configuration["PayGate:PayGateKey"];
+            var SiteCode = _configuration["OZOW:SiteCode"];
+            var PrivateKey  = _configuration["OZOW:PrivateKey"];
+            var APIKey  = _configuration["OZOW:APIKey"];
 
             //string responseContent = Request.Params.ToString();
             string responseContent = Request.QueryString.ToString();
@@ -148,30 +149,56 @@ namespace Ozow_Integration.Controllers
 
             // Reorder attributes for MD5 check
             Dictionary<string, string> validationSet = new Dictionary<string, string>();
-            validationSet.Add("PAYGATE_ID", PayGateID);
-            validationSet.Add("PAY_REQUEST_ID", results["PAY_REQUEST_ID"]);
-            validationSet.Add("TRANSACTION_STATUS", results["TRANSACTION_STATUS"]);
-            validationSet.Add("REFERENCE", transaction.REFERENCE);
+            validationSet.Add("SiteCode", SiteCode);
+            validationSet.Add("TransactionId", results["TransactionId"]);
+            validationSet.Add("TransactionReference", results["TransactionReference"]);
+            validationSet.Add("Amount", results["Amount"]);
+            validationSet.Add("Status", results["Status"]);
+            // Optional fields
+            validationSet.Add("Optional1", results["Optional1"]); // Customer Email
+            validationSet.Add("Optional1", results["Optional2"]); // CustID
+            validationSet.Add("Optional3", results["Optional3"]); // BasketID
+            validationSet.Add("Optional4", results["Optional3"]); // OrderID
+            validationSet.Add("Customer", results["Customer"]); // Customer Name
+            validationSet.Add("CurrencyCode", results["CurrencyCode"]);
+            validationSet.Add("IsTest", results["IsTest"]);
+            validationSet.Add("StatusMessage", results["StatusMessage"]);
+            validationSet.Add("Hash", results["Hash"]);
 
-            if (!_payment.VerifyMd5Hash(validationSet, PayGateKey, results["CHECKSUM"]))
+            if (!_payment.VerifySHA512Hash(validationSet, PrivateKey, results["HASHCHECK"]))
             {
                 // checksum error
                 return RedirectToAction("Failed");
             }
             /** Payment Status 
-             * -2 = Unable to reconsile transaction
-             * -1 = Checksum Error
-             * 0 = Pending
-             * 1 = Approved
-             * 2 = Declined
-             * 3 = Cancelled
-             * 4 = User Cancelled
+             * "Complete"
+             * "Cancelled"
+             * "Error"
+             * "Abandoned"
+             * "PendingInvestigation"
              */
-            int paymentStatus = int.Parse(results["TRANSACTION_STATUS"]);
-            if(paymentStatus == 1)
+            string strResponse = ""; 
+            string paymentStatus = results["Status"].ToString();
+            switch (paymentStatus)
             {
-                // Yey, payment approved
-                // Do something useful
+                case "Complete":
+                    strResponse = "~Approved. Transaction Reference=" + results["Optional1"] + ": " + results["StatusMessage"];
+                    break;
+                case "Cancelled":
+                    strResponse = "~Cancelled. Transaction Reference=" + results["Optional1"] + ": " + results["StatusMessage"];
+                    break;
+                case "Error":
+                    strResponse = "~Error. Transaction Reference=" + results["Optional1"] + ": " + results["StatusMessage"];
+                    break;
+                case "Abandoned":
+                    strResponse = "~Abandoned. Transaction Reference=" + results["Optional1"] + ": " + results["StatusMessage"];
+                    break;
+                case "PendingInvestigation":
+                    strResponse = "~Pending Investigation. Transaction Reference=" + results["Optional1"] + ": " + results["StatusMessage"];
+                    break;
+                default:
+                    strResponse = "~Cancelled. Error occured during your transaction.";
+                    break;
             }
             // Query paygate transaction details
             // And update user transaction on your database

@@ -15,6 +15,7 @@ namespace Ozow_Integration.Ozow
         string GetMd5Hash(Dictionary<string, string> data, string encryptionKey);
         bool VerifyMd5Hash(Dictionary<string, string> data, string encryptionKey, string hash);
         string SHA512(string input);
+        bool VerifySHA512Hash(Dictionary<string, string> data, string privateKey, string hash);
         //ApplicationUser GetAuthenticatedUser();
         //void UpdateTransactionStatus(Transaction transaction);        
     }
