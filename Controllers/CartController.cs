@@ -15,6 +15,7 @@ using System.Net.Http;
 using System.Configuration;
 using System.Text;
 using System.Web;
+using Microsoft.AspNetCore.Http;
 
 namespace Ozow_Integration.Controllers
 {
@@ -35,9 +36,9 @@ namespace Ozow_Integration.Controllers
             return View();
         }
 
-        public async Task<JsonResult> GetRequest()
+        public async Task<JsonResult> GetRequest(IFormCollection _formValues)
         {
-            //var user = User.FindFirst(ClaimTypes.Name);    
+            var user = User.FindFirst(ClaimTypes.Name);    
             
             var SiteCode = _configuration["OZOW:SiteCode"];
             var PrivateKey  = _configuration["OZOW:PrivateKey"];
@@ -45,29 +46,30 @@ namespace Ozow_Integration.Controllers
 
             HttpClient http = new HttpClient();
             Dictionary<string, string> request = new Dictionary<string, string>();
-            string paymentAmount = (50 * 100).ToString("00"); // amount int cents e.i 50 rands is 5000 cents
-            
+            string paymentAmount = (50 * 100).ToString("00"); // amount int cents e.i 50 rands is 5000 cents 
+
             request.Add("SITE_CODE", SiteCode);
-            request.Add("COUNTRY_CODE", "ZAR");
-            request.Add("CURRENCY_CODE", "ZAR");
-            request.Add("TOTAL_AMOUNT", paymentAmount);
-            request.Add("TRANSACTION_REFERENCE", "#45846"); // Payment ref e.g ORDER NUMBER
-            request.Add("BANK_REFERENCE", "ABC#45846"); // Payment ref e.g ORDER NUMBER
+            request.Add("COUNTRY_CODE", _formValues["COUNTRY_CODE"]);
+            request.Add("CURRENCY_CODE", _formValues["CURRENCY_CODE"]);
+            request.Add("TOTAL_AMOUNT", _formValues["TOTAL_AMOUNT"]);
+            request.Add("TRANSACTION_REFERENCE", _formValues["TRANSACTION_REFERENCE"]); // Payment ref e.g ORDER NUMBER
+            request.Add("BANK_REFERENCE", _formValues["BANK_REFERENCE"]); // Payment ref e.g ORDER NUMBER
             // Optional fields
-            request.Add("OPTIONAL1", "thabit9@gmail.com"); // Customer Email
-            request.Add("OPTIONAL2", "#25756"); // CustID
-            request.Add("OPTIONAL3", "#45846"); // BasketID
-            request.Add("OPTIONAL4", "#45846"); // OrderID
-            request.Add("CUSTOMER", "Thabi Tabana"); // Customer Name
+            request.Add("OPTIONAL1", _formValues["OPTIONAL1"]); // Customer Email
+            request.Add("OPTIONAL2", _formValues["OPTIONAL2"]); // CustID
+            request.Add("OPTIONAL3", _formValues["OPTIONAL3"]); // BasketID
+            request.Add("OPTIONAL4", _formValues["OPTIONAL4"]); // OrderID
+            request.Add("CUSTOMER", _formValues["CUSTOMER"]); // Customer Name
+            //request.Add("CUSTOMER", user.ToString());
 
             // OZOW now needs a real/non-localhost url as the success_url, error_url, cancel_url, and notified_url
             // TODO: Here you can add any website url to test, but bear in mind that it will return to this website once payment is completes
             // Important Urls
-            request.Add("CANCEL_URL", $"{Request.Scheme}://{Request.Host}/cart/complete");
-            request.Add("ERROR_URL", $"{Request.Scheme}://{Request.Host}/cart/complete");
-            request.Add("SUCCESS_URL", $"{Request.Scheme}://{Request.Host}/cart/complete");
-            request.Add("NOTIFY_URL", $"{Request.Scheme}://{Request.Host}/cart/complete");
-            request.Add("IS_TEST", "true");
+            request.Add("CANCEL_URL", $"{Request.Scheme}://{Request.Host}/cart/CompletePayment");
+            request.Add("ERROR_URL", $"{Request.Scheme}://{Request.Host}/cart/CompletePayment");
+            request.Add("SUCCESS_URL", $"{Request.Scheme}://{Request.Host}/cart/CompletePayment");
+            request.Add("NOTIFY_URL", $"{Request.Scheme}://{Request.Host}/cart/CompletePayment");
+            request.Add("IS_TEST", _formValues["IS_TEST"]);
 
             // Create CHECKSUM Field
             // Concatenate the post variables (excluding HashCheck and Token) in the order they appear in the post variables table
@@ -79,7 +81,7 @@ namespace Ozow_Integration.Controllers
             // Generate a SHA512 hash of the lowercase concatenated string.
             string HashCheck = _payment.SHA512(LowerHashString);
             // add to the dictionary
-            request.Add("HASHCHECK", HashCheck);
+            request.Add("HASH", HashCheck);
 
             string requestString = _payment.ToUrlEncodedString(request);
             StringContent content = new StringContent(requestString, Encoding.UTF8, "application/x-www-form-urlencoded");
@@ -100,7 +102,7 @@ namespace Ozow_Integration.Controllers
                 }, new Newtonsoft.Json.JsonSerializerSettings());
             }
 
-            if (!_payment.VerifySHA512Hash(results, PrivateKey, results["HASHCHECK"]))
+            if (!_payment.VerifySHA512Hash(results, PrivateKey, results["Hash"]))
             {
                 return Json(new
                 {
@@ -109,7 +111,7 @@ namespace Ozow_Integration.Controllers
                 }, new Newtonsoft.Json.JsonSerializerSettings());
             }
 
-            bool IsRecorded = _payment.AddTransaction(request, results["TRANSACTION_ID"]);
+            bool IsRecorded = _payment.AddTransaction(request, results["TransactionId"]);
             if (IsRecorded)
             {
                 return Json(new
@@ -139,7 +141,7 @@ namespace Ozow_Integration.Controllers
             string responseContent = Request.QueryString.ToString();
             Dictionary<string, string> results = _payment.ToDictionary(responseContent);
 
-            Transaction transaction = _payment.GetTransaction(results["PAY_REQUEST_ID"]);
+            Transaction transaction = _payment.GetTransaction(results["TransactionId"]);
 
             if (transaction == null)
             {
@@ -158,14 +160,14 @@ namespace Ozow_Integration.Controllers
             validationSet.Add("Optional1", results["Optional1"]); // Customer Email
             validationSet.Add("Optional1", results["Optional2"]); // CustID
             validationSet.Add("Optional3", results["Optional3"]); // BasketID
-            validationSet.Add("Optional4", results["Optional3"]); // OrderID
+            validationSet.Add("Optional4", results["Optional4"]); // OrderID
             validationSet.Add("Customer", results["Customer"]); // Customer Name
             validationSet.Add("CurrencyCode", results["CurrencyCode"]);
             validationSet.Add("IsTest", results["IsTest"]);
             validationSet.Add("StatusMessage", results["StatusMessage"]);
             validationSet.Add("Hash", results["Hash"]);
 
-            if (!_payment.VerifySHA512Hash(validationSet, PrivateKey, results["HASHCHECK"]))
+            if (!_payment.VerifySHA512Hash(validationSet, PrivateKey, results["Hash"]))
             {
                 // checksum error
                 return RedirectToAction("Failed");
@@ -177,6 +179,8 @@ namespace Ozow_Integration.Controllers
              * "Abandoned"
              * "PendingInvestigation"
              */
+
+            /*
             string strResponse = ""; 
             string paymentStatus = results["Status"].ToString();
             switch (paymentStatus)
@@ -200,32 +204,45 @@ namespace Ozow_Integration.Controllers
                     strResponse = "~Cancelled. Error occured during your transaction.";
                     break;
             }
+            */
             // Query paygate transaction details
             // And update user transaction on your database
-            await VerifyTransaction(responseContent, transaction.REFERENCE);
-            return RedirectToAction("Complete", new { id = results["TRANSACTION_STATUS"] });
+            await VerifyTransaction(responseContent, transaction.TRANSACTION_REFERENCE);
+            return RedirectToAction("Complete", new { id = results["Status"] });
         }        
         
         private async Task VerifyTransaction(string responseContent, string Referrence)
         {
-            var PayGateID = _configuration["PayGate:PayGateID"];
-            var PayGateKey  = _configuration["PayGate:PayGateKey"];
+            var SiteCode = _configuration["OZOW:SiteCode"];
+            var PrivateKey  = _configuration["OZOW:PrivateKey"];
+            var APIKey  = _configuration["OZOW:APIKey"];
 
             HttpClient client = new HttpClient();
             Dictionary<string, string> response = _payment.ToDictionary(responseContent);
             Dictionary<string, string> request = new Dictionary<string, string>();
 
-            request.Add("PAYGATE_ID", PayGateID);
-            request.Add("PAY_REQUEST_ID", response["PAY_REQUEST_ID"]);
-            request.Add("REFERENCE", Referrence);
-            request.Add("CHECKSUM", _payment.GetMd5Hash(request, PayGateKey));
+            //using transaction reference
+            request.Add("SiteCode", SiteCode);
+            request.Add("TransactionReference", response["TransactionReference"]);
+            request.Add("IsTest", response["IsTest"]);
+
+            //using transactionid
+            /*
+            request.Add("SiteCode", SiteCode);
+            request.Add("TransactionId", response["TransactionId"]);
+            */
+
 
             string requestString = _payment.ToUrlEncodedString(request);
-
             StringContent content = new StringContent(requestString, Encoding.UTF8, "application/x-www-form-urlencoded");
 
             // ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-            HttpResponseMessage res = await client.PostAsync("https://secure.paygate.co.za/payweb3/query.trans", content);
+            //https://api.ozow.com/GetTransactionByReference?siteCode={siteCode}&transactionReference={transactionReference}
+            HttpResponseMessage res = await client.PostAsync("https://api.ozow.com/GetTransactionByReference?"+ requestString, content);
+
+            //https://api.ozow.com/GetTransaction?siteCode={siteCode}&transactionId={transactionId}
+            //HttpResponseMessage res = await client.PostAsync("https://api.ozow.com/GetTransaction?"+ requestString, content);
+
             res.EnsureSuccessStatusCode();
 
             string _responseContent = await res.Content.ReadAsStringAsync();
@@ -233,42 +250,38 @@ namespace Ozow_Integration.Controllers
             Dictionary<string, string> results = _payment.ToDictionary(_responseContent);
             if (!results.Keys.Contains("ERROR"))
             {
-                _payment.UpdateTransaction(results, results["PAY_REQUEST_ID"]);
+                _payment.UpdateTransaction(results, results["TransactionId"]);
             }
 
         }
 
         [Route("complete")]
-        public IActionResult Complete(int? id)
+        public IActionResult Complete(string id)
         {
-            string status = "Unknown";
-            switch (id.ToString())
+            string status = "Unknown"; 
+            string paymentStatus = id.ToString();
+            switch (paymentStatus)
             {
-                case "-2":
-                    status = "Unable to reconsile transaction";
+                case "Complete":
+                    status = "~Approved.";
                     break;
-                case "-1":
-                    status = "Checksum Error. The values have been altered";
+                case "Cancelled":
+                    status = "~Cancelled.";
                     break;
-                case "0":
-                    status = "Not Done";
+                case "Error":
+                    status = "~Error.";
                     break;
-                case "1":
-                    status = "Approved";
+                case "Abandoned":
+                    status = "~Abandoned.";
                     break;
-                case "2":
-                    status = "Declined";
-                    break;
-                case "3":
-                    status = "Cancelled";
-                    break;
-                case "4":
-                    status = "User Cancelled";
+                case "PendingInvestigation":
+                    status = "~Pending Investigation.";
                     break;
                 default:
-                    status = $"Unknown Status({ id })";
+                    status = "~Cancelled. Error occured during your transaction.";
                     break;
             }
+
             TempData["Status"] = status;
 
             return View("Complete");

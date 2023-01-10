@@ -1,3 +1,4 @@
+using System.Reflection.Metadata;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,17 +68,27 @@ namespace Ozow_Integration.Ozow
         #endregion Utility
 
         #region Transactions 
-        public bool AddTransaction(Dictionary<string, string> request, string payRequestId)
+        public bool AddTransaction(Dictionary<string, string> request, string transactionId)
         {
             try
             {
+                //var user = User.FindFirst(ClaimTypes.Name); 
                 Transaction transaction = new Transaction
                 {
-                    DATE = DateTime.Now,
-                    PAY_REQUEST_ID = payRequestId,
-                    REFERENCE = request["REFERENCE"],
-                    AMOUNT = int.Parse(request["AMOUNT"]),
-                    CUSTOMER_EMAIL_ADDRESS = request["EMAIL"]
+                    CREATED_DATE = DateTime.Now,
+                    TRANSACTION_ID = transactionId,
+                    TRANSACTION_REFERENCE = request["TransactionReference"],
+                    AMOUNT = decimal.Parse(request["Amount"]),
+                    TRANSACTION_STATUS = request["status"], 
+                    TRANSACTION_MESSAGE = request["StatusMessage"],
+
+                    OPTIONAL1 = request["Optional1"], 
+                    OPTIONAL2 = request["Optional2"], 
+                    OPTIONAL3 = request["Optional3"], 
+                    OPTIONAL4 = request["Optional4"], 
+                    IS_TEST = IsTestEnvironment(request["IsTest"]),
+                    HASH = request["Hash"],
+                    //CUSTOMER_EMAIL_ADDRESS = user.ToString()
                 };
                 _db.Transactions.Add(transaction);
                 _db.SaveChanges();
@@ -90,10 +101,20 @@ namespace Ozow_Integration.Ozow
             }
             
         }
-        // get transaction using pay request Id
-        public Transaction GetTransaction(string payRequestId)
+        public bool IsTestEnvironment(string isTest)
         {
-            Transaction transaction = _db.Transactions.FirstOrDefault(p => p.PAY_REQUEST_ID == payRequestId);
+            if(isTest == "true")
+            {
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        // get transaction using pay request Id
+        public Transaction GetTransaction(string transactionId)
+        {
+            Transaction transaction = _db.Transactions.FirstOrDefault(p => p.TRANSACTION_ID == transactionId);
             if (transaction == null)
             {
                 return new Transaction();
@@ -102,17 +123,22 @@ namespace Ozow_Integration.Ozow
             return transaction;
         }
 
-        public bool UpdateTransaction(Dictionary<string, string> request, string PayrequestId)
+        public bool UpdateTransaction(Dictionary<string, string> request, string transactionId)
         {
             bool IsUpdated = false;
 
-            Transaction transaction = GetTransaction(PayrequestId);
+            Transaction transaction = GetTransaction(transactionId);
             if (transaction == null)
                 return IsUpdated;
-
-            transaction.TRANSACTION_STATUS = request["TRANSACTION_STATUS"];
-            transaction.RESULT_DESC = request["RESULT_DESC"];
-            transaction.RESULT_CODE = (ResultCodes)int.Parse(request["RESULT_CODE"]);
+            
+            transaction.PAYMENT_DATE = DateTime.Now;
+            transaction.MERCHANT_CODE = request["MerchantCode"];
+            transaction.SITE_CODE = request["SiteCode"];
+            transaction.TRANSACTION_REFERENCE = request["TransactionReference"];
+            transaction.CURRENCY_CODE = request["CurrencyCode"];
+            transaction.AMOUNT = decimal.Parse(request["Amount"]);
+            transaction.TRANSACTION_STATUS = request["status"];
+            transaction.TRANSACTION_MESSAGE = request["StatusMessage"];
             try
             {
                 _db.SaveChanges();

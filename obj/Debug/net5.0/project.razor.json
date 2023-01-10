@@ -15624,6 +15624,11 @@
       "FileKind": "mvc"
     },
     {
+      "FilePath": "e:\\Thabis Documents\\Projects\\NETCore5\\ozow_integration\\Views\\Cart\\Complete.cshtml",
+      "TargetPath": "Views\\Cart\\Complete.cshtml",
+      "FileKind": "mvc"
+    },
+    {
       "FilePath": "e:\\Thabis Documents\\Projects\\NETCore5\\ozow_integration\\Views\\Home\\Privacy.cshtml",
       "TargetPath": "Views\\Home\\Privacy.cshtml",
       "FileKind": "mvc"
@@ -15631,6 +15636,11 @@
     {
       "FilePath": "e:\\Thabis Documents\\Projects\\NETCore5\\ozow_integration\\Views\\_ViewStart.cshtml",
       "TargetPath": "Views\\_ViewStart.cshtml",
+      "FileKind": "mvc"
+    },
+    {
+      "FilePath": "e:\\Thabis Documents\\Projects\\NETCore5\\ozow_integration\\Views\\Cart\\Index.cshtml",
+      "TargetPath": "Views\\Cart\\Index.cshtml",
       "FileKind": "mvc"
     },
     {

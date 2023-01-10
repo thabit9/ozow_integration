@@ -1,0 +1,96 @@
+@{
+    ViewData["Title"] = "Cart";
+}
+<style>
+    .hidden {
+        display: none;
+    }
+    li {
+        font-size: 18px;
+        list-style-type: none;
+    }
+    #results {
+        display: block;
+        text-align: center;
+    }
+    #paygate {
+        display: none;
+    }
+</style>
+
+<h3>Cart</h3>
+
+<div class="hidden">
+    <form id="OzowRequestForm">
+        <input type="hidden" name="SITE_CODE" value="" />
+        <input type="hidden" name="COUNTRY_CODE" value="ZA" />
+        <input type="hidden" name="CURRENCY_CODE" value="ZAR" />
+        <input type="hidden" name="TOTAL_AMOUNT" value="5000" />
+        <input type="hidden" name="TRANSACTION_REFERENCE" value="#45846" />
+        <input type="hidden" name="BANK_REFERENCE" value="ABC#45846" />
+        <input type="hidden" name="OPTIONAL1" value="thabit9@gmail.com" />
+        <input type="hidden" name="OPTIONAL2" value="#45846" />
+        <input type="hidden" name="OPTIONAL3" value="#45846" />
+        <input type="hidden" name="OPTIONAL4" value="#45846" />
+        <input type="hidden" name="CUSTOMER" value="Thabi Tabana" />
+        <input type="hidden" name="CANCEL_URL" value="" />
+        <input type="hidden" name="ERROR_URL" value="" />
+        <input type="hidden" name="SUCCESS_URL" value="" />
+        <input type="hidden" name="NOTIFY_URL" value="" />
+        <input type="hidden" name="IS_TEST" value="true" />
+    </form>
+</div>
+
+<button class="btn btn-danger btn-lg btn-block btn-buy" id="btn-pay">
+    <span>Confirm (Ozow)</span>
+    <i class="fa fa-angle-right ml-3"></i>
+</button>
+<div class="row">
+    <div class="col-sm-6 col-lg-4 ml-lg-auto">
+        <p class="text-center">
+            <ul class="text-info" id="results"></ul>
+        </p>
+    </div>
+</div>
+<div class="hidden">
+    <form action="https://secure.paygate.co.za/payweb3/process.trans" method="POST">
+        <input id="PAY_REQUEST_ID" name="PAY_REQUEST_ID" type="hidden" />
+        <input id="CHECKSUM" name="CHECKSUM" type="hidden" />
+        <input id="REDIRECT" type="submit" />
+    </form>
+</div>
+
+
+<script type="text/javascript" src="~/lib/jquery/dist/jquery.js"></script>
+<script type="text/javascript">
+    $('#btn-pay').on('click', function () {
+        let node = document.createElement("li");
+        node.innerText = "Processing...";
+        document.querySelector("#results").appendChild(node);
+        var ozow_form = document.getElementById('OzowRequestForm');
+
+        $.get('/cart/getrequest')
+            .done(data => success(data))
+            .fail(err => error(err));
+    });
+    function success(data) {
+        let requestNode = document.createElement("li");
+        requestNode.innerText = "Request retrieved";
+        document.querySelector("#results").appendChild(requestNode);
+        requestNode.innerText = data.message;
+        if (data.success) {
+            $("#PAY_REQUEST_ID").val(data.results.PAY_REQUEST_ID);
+            $("#CHECKSUM").val(data.results.CHECKSUM);
+            let redirectNode = document.createElement("li");
+            redirectNode.innerText = "Redirecting...";
+            document.querySelector("#results").appendChild(redirectNode);
+            document.querySelector("#REDIRECT").click();
+        }
+    }
+    function error(data) {
+        console.log("Error");
+        let node = document.createElement("li");
+        node.innerText = data;
+        document.querySelector("#results").appendChild(node);
+    }
+</script>
