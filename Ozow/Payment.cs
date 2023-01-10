@@ -249,7 +249,7 @@ namespace Ozow_Integration.Ozow
 
             foreach (string key in data.Keys)
             {
-                if (key != "HASHCHECK")
+                if (key != "Hash")
                 {
                     hashDict.Add(key, data[key]);
                 }
